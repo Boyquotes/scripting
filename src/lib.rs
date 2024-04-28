@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{any::Any, collections::HashMap, fmt, sync::Arc};
 
 pub trait FunctionBuilder {
     fn build(&self, args: Vec<Expr>) -> Arc<dyn Function>;
@@ -8,9 +8,11 @@ pub trait FunctionBuilder {
 
 pub trait Function {
     fn dependencies(&self) -> Vec<String>;
+
+    fn run(&self, scope: &Scope) -> f64;
 }
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum StaticExpr {
     Number(f64),
@@ -36,7 +38,13 @@ impl Registry {
 }
 
 impl ExprData {
-    pub fn build(self, registry: &Registry) -> Expr {
+    pub fn build(self, registry: &Registry) -> Scope {
+        let expr = self.build_expr(registry);
+        let dependencies = expr.deps().into_iter().map(|id| (id, None)).collect();
+        Scope { expr, dependencies }
+    }
+
+    pub fn build_expr(self, registry: &Registry) -> Expr {
         match self {
             ExprData::Static(s) => Expr::Static(s),
             ExprData::Dynamic(fn_expr) => {
@@ -45,7 +53,7 @@ impl ExprData {
                 let args = fn_expr
                     .args
                     .into_iter()
-                    .map(|arg| arg.build(registry))
+                    .map(|arg| arg.build_expr(registry))
                     .collect();
                 Expr::Dynamic(FunctionExpr {
                     f: builder.build(args),
@@ -62,6 +70,13 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn run(&self, scope: &Scope) -> StaticExpr {
+        match self {
+            Expr::Static(s) => s.clone(),
+            Expr::Dynamic(fn_expr) => StaticExpr::Number(fn_expr.f.run(scope)),
+        }
+    }
+
     pub fn deps(&self) -> Vec<String> {
         match self {
             Expr::Static(_) => Vec::new(),
@@ -112,6 +127,25 @@ impl<'de> Deserialize<'de> for FunctionExprData {
     }
 }
 
+pub struct Scope {
+    expr: Expr,
+    dependencies: HashMap<String, Option<f64>>,
+}
+
+impl Scope {
+    pub fn set_dependency(&mut self, id: &str, value: f64) {
+        *self.dependencies.get_mut(id).unwrap() = Some(value);
+    }
+
+    pub fn run(&self) -> Option<StaticExpr> {
+        if !self.dependencies.values().all(Option::is_some) {
+            return None;
+        }
+
+        Some(self.expr.run(self))
+    }
+}
+
 struct AddFunctionBuilder;
 
 impl FunctionBuilder for AddFunctionBuilder {
@@ -127,6 +161,20 @@ struct AddFunction {
 impl Function for AddFunction {
     fn dependencies(&self) -> Vec<String> {
         self.args.iter().map(|arg| arg.deps()).flatten().collect()
+    }
+
+    fn run(&self, scope: &Scope) -> f64 {
+        let mut sum = 0.;
+
+        for arg in &self.args {
+            if let StaticExpr::Number(n) = arg.run(scope) {
+                sum += n
+            } else {
+                todo!()
+            }
+        }
+
+        sum
     }
 }
 
@@ -152,6 +200,10 @@ impl Function for QueryFunction {
     fn dependencies(&self) -> Vec<String> {
         vec![self.dependency.clone()]
     }
+
+    fn run(&self, scope: &Scope) -> f64 {
+        scope.dependencies.get(&self.dependency).unwrap().unwrap()
+    }
 }
 
 #[cfg(test)]
@@ -165,7 +217,10 @@ mod tests {
         registry.insert("@", QueryFunctionBuilder);
 
         let data: ExprData = serde_json::from_str(r#" [ "+", [ "@", "test" ], 2 ] "#).unwrap();
-        let expr = data.build(&registry);
-        dbg!(expr.deps());
+        let mut scope = data.build(&registry);
+        dbg!(scope.run());
+
+        scope.set_dependency("test", 3.);
+        dbg!(scope.run());
     }
 }
