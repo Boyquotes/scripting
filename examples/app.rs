@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use scripting::{
-    expr::{function, ExprData, StaticExpr},
-    Registry, Scope, ScriptPlugin,
+    expr::{function, ExprData},
+    Registry, ScriptPlugin,
 };
 
-#[derive(PartialEq, Component, Deref)]
+#[derive(Default, Component, Deref, DerefMut)]
 pub struct Health(f64);
 
-#[derive(PartialEq, Component, Deref)]
+#[derive(Default, Component, Deref, DerefMut)]
 pub struct Damage(f64);
 
 #[derive(Resource)]
@@ -23,7 +23,7 @@ fn main() {
                 .with_function("@", function::query()),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (spawn_expr, run_expr, debug))
+        .add_systems(Update, (spawn_expr, debug))
         .run();
 }
 
@@ -51,16 +51,6 @@ fn spawn_expr(
 
     for id in asset_ids {
         expr_data_assets.remove(id);
-    }
-}
-
-fn run_expr(mut query: Query<(&mut Damage, &Scope), Changed<Scope>>) {
-    for (mut dmg, expr) in &mut query {
-    
-        if let Some(StaticExpr::Number(new_health)) = expr.run() {
-        
-            dmg.set_if_neq(Damage(new_health));
-        }
     }
 }
 

@@ -9,7 +9,12 @@ use bevy::{
 };
 use bevy_common_assets::json::JsonAssetPlugin;
 use expr::ExprData;
-use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{
+    collections::HashMap,
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 pub mod expr;
 use self::expr::{
@@ -84,18 +89,22 @@ impl Scope {
 #[derive(Default)]
 pub struct ScriptPlugin {
     registry: Registry,
-    lazy_system_fns: Vec<Arc<dyn Fn(&mut App) + Send + Sync>>,
+    add_system_fns: Vec<Arc<dyn Fn(&mut App) + Send + Sync>>,
 }
 
 impl ScriptPlugin {
     pub fn with_dependency<C>(mut self, id: impl Into<String>) -> Self
     where
-        C: Component + Deref<Target = f64>,
+        C: Component + Default + DerefMut<Target = f64>,
     {
         self.registry.add_dependency::<C>(id);
 
-        self.lazy_system_fns.push(Arc::new(|app: &mut App| {
+        self.add_system_fns.push(Arc::new(|app: &mut App| {
             app.add_systems(Update, run_lazy::<C>);
+        }));
+
+        self.add_system_fns.push(Arc::new(|app: &mut App| {
+            app.add_systems(Update, run_expr::<C>);
         }));
 
         self
@@ -112,8 +121,23 @@ impl Plugin for ScriptPlugin {
         app.add_plugins(JsonAssetPlugin::<ExprData>::new(&[]))
             .insert_resource(self.registry.clone());
 
-        for f in &self.lazy_system_fns {
+        for f in &self.add_system_fns {
             f(app)
+        }
+    }
+}
+
+fn run_expr<T: Component + Default + DerefMut<Target = f64>>(
+    mut query: Query<(&mut T, &Scope), Changed<Scope>>,
+) {
+    for (mut value, expr) in &mut query {
+        if let Some(StaticExpr::Number(new)) = expr.run() {
+            if **value != new {
+                let mut new_value = T::default();
+                *new_value = new;
+
+                *value = new_value;
+            }
         }
     }
 }
