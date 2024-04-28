@@ -1,10 +1,12 @@
 use bevy::{
     app::{Plugin, Update},
-    asset::{Asset, Assets, Handle},
+    asset::{Asset, AssetServer, Assets, Handle},
     ecs::{
         component::Component,
         entity::Entity,
+        event::{Event, EventReader, EventWriter},
         query::{Changed, With},
+        schedule::{NextState, State, States},
         system::{Commands, EntityCommands, Query, Res, ResMut, Resource},
     },
     prelude::App,
@@ -19,6 +21,7 @@ use std::{
     collections::HashMap,
     marker::PhantomData,
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -112,7 +115,10 @@ impl Plugin for ScriptPlugin {
         app.add_plugins(JsonAssetPlugin::<ComponentsData>::new(&[]))
             .insert_resource(self.registry.clone())
             .init_resource::<AssetRegistry>()
-            .add_systems(Update, spawn_expr);
+            .insert_state(ScriptState::Ready)
+            .add_event::<LoadScript>()
+            .add_event::<ScriptsReady>()
+            .add_systems(Update, (load_assets, spawn_expr));
 
         for f in &self.add_system_fns {
             f(app)
@@ -128,19 +134,49 @@ pub struct AssetRegistry {
     pub handles: HashMap<String, Handle<ComponentsData>>,
 }
 
+fn load_assets(
+    mut asset_registry: ResMut<AssetRegistry>,
+    asset_server: Res<AssetServer>,
+    mut asset_events: EventReader<LoadScript>,
+    mut state: ResMut<NextState<ScriptState>>,
+) {
+    for event in asset_events.read() {
+        let handle = asset_server.load(event.path.clone());
+        asset_registry
+            .handles
+            .insert(String::from("sword.json"), handle);
+
+        state.set(ScriptState::Loading);
+    }
+}
+
 fn spawn_expr(
     mut commands: Commands,
     asset_registry: Res<AssetRegistry>,
     assets: Res<Assets<ComponentsData>>,
     registry: Res<Registry>,
     query: Query<(Entity, &ScriptBundle)>,
+    mut asset_events: EventWriter<ScriptsReady>,
+    state: Res<State<ScriptState>>,
+    mut next_state: ResMut<NextState<ScriptState>>,
 ) {
+    let mut is_ready = true;
+
     for (entity, bundle) in &query {
         let handle = asset_registry.handles.get(&bundle.0).unwrap();
         if let Some(data) = assets.get(handle) {
             registry.spawn(&mut commands.entity(entity), data.0.clone());
 
             commands.entity(entity).remove::<ScriptBundle>();
+        } else {
+            is_ready = false;
+        }
+    }
+
+    if is_ready {
+        if *state == ScriptState::Loading {
+            next_state.set(ScriptState::Ready);
+            asset_events.send(ScriptsReady);
         }
     }
 }
@@ -172,3 +208,23 @@ where
 
 #[derive(Deserialize, Asset, TypePath)]
 pub struct ComponentsData(pub HashMap<String, Value>);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, States)]
+pub enum ScriptState {
+    Loading,
+    Ready,
+}
+
+#[derive(Event)]
+pub struct LoadScript {
+    path: PathBuf,
+}
+
+impl LoadScript {
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self { path: path.into() }
+    }
+}
+
+#[derive(Event)]
+pub struct ScriptsReady;

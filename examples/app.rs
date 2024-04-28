@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use scripting::{
     expr::{function, ExprData},
-    AssetRegistry, DynamicComponent, Registry, ScriptBundle, ScriptPlugin,
+    DynamicComponent, LoadScript, Registry, ScriptBundle, ScriptPlugin, ScriptsReady,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
@@ -35,25 +35,22 @@ fn main() {
                 .with_function("@", function::query()),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, debug)
+        .add_systems(Update, (spawn_sword, debug))
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut asset_registry: ResMut<AssetRegistry>,
-) {
-    commands.spawn((
-        Health(10.),
-        Damage(1.),
-        ScriptBundle(String::from("sword.json")),
-    ));
+fn setup(mut asset_events: EventWriter<LoadScript>) {
+    asset_events.send(LoadScript::new("sword.json"));
+}
 
-    let handle = asset_server.load("sword.json");
-    asset_registry
-        .handles
-        .insert(String::from("sword.json"), handle);
+fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
+    for _event in events.read() {
+        commands.spawn((
+            Health(10.),
+            Damage(1.),
+            ScriptBundle(String::from("sword.json")),
+        ));
+    }
 }
 
 fn debug(query: Query<&Damage, Changed<Damage>>) {
