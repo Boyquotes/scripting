@@ -3,12 +3,13 @@ use bevy::{
     ecs::{
         component::Component,
         query::Changed,
-        system::{EntityCommands, Query, Resource},
+        system::{Query, Resource},
     },
     prelude::App,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
 use expr::ExprData;
+use scope::Dependency;
 use std::{
     collections::HashMap,
     marker::PhantomData,
@@ -19,26 +20,16 @@ use std::{
 pub mod expr;
 use self::expr::{
     function::{DynFunctionBuilder, FunctionBuilder},
-    Expr, StaticExpr,
+    StaticExpr,
 };
+
+mod scope;
+pub use scope::Scope;
 
 #[derive(Component)]
 pub struct Depends<T> {
     id: String,
     _marker: PhantomData<T>,
-}
-
-trait Dependency: Send + Sync + 'static {
-    fn spawn(&self, id: String, entity_commands: &mut EntityCommands);
-}
-
-impl<C: Component> Dependency for PhantomData<C> {
-    fn spawn(&self, id: String, entity_commands: &mut EntityCommands) {
-        entity_commands.insert(Depends {
-            id,
-            _marker: PhantomData::<C>,
-        });
-    }
 }
 
 #[derive(Clone, Default, Resource)]
@@ -54,35 +45,6 @@ impl Registry {
 
     pub fn add_dependency<C: Component>(&mut self, id: impl Into<String>) {
         self.deps.insert(id.into(), Arc::new(PhantomData::<C>));
-    }
-}
-
-#[derive(Component)]
-pub struct Scope {
-    expr: Expr,
-    dependencies: HashMap<String, Option<f64>>,
-}
-
-impl Scope {
-    pub fn spawn(self, registry: &Registry, entity_commands: &mut EntityCommands) {
-        for id in self.dependencies.keys() {
-            let dep = registry.deps.get(id).unwrap();
-            dep.spawn(id.clone(), entity_commands);
-        }
-
-        entity_commands.insert(self);
-    }
-
-    pub fn set_dependency(&mut self, id: &str, value: f64) {
-        *self.dependencies.get_mut(id).unwrap() = Some(value);
-    }
-
-    pub fn run(&self) -> Option<StaticExpr> {
-        if !self.dependencies.values().all(Option::is_some) {
-            return None;
-        }
-
-        Some(self.expr.run(self))
     }
 }
 
