@@ -14,6 +14,7 @@ use bevy::{
 };
 use bevy_common_assets::json::JsonAssetPlugin;
 
+use expr::function;
 use scope::Dependency;
 use serde::Deserialize;
 use serde_json::Value;
@@ -71,32 +72,36 @@ impl Registry {
     }
 }
 
-#[derive(Default)]
 pub struct ScriptPlugin {
     registry: Registry,
     add_system_fns: Vec<Arc<dyn Fn(&mut App) + Send + Sync>>,
 }
 
 impl ScriptPlugin {
-    pub fn with_bundle<T: DynamicComponent>(mut self, id: impl Into<String>) -> Self {
-        self.registry.spawn_fns.insert(
-            id.into(),
-            Arc::new(|value, registry, entity_commands| {
-                let data: T::Data = serde_json::from_value(value).unwrap();
-                data.register::<T>(registry, entity_commands);
-            }),
-        );
-        self
+    pub fn empty() -> Self {
+        Self {
+            registry: Registry::default(),
+            add_system_fns: Vec::new(),
+        }
     }
 
-    pub fn with_dependency<C>(mut self, id: impl Into<String>) -> Self
-    where
-        C: Component + Default + DerefMut<Target = f64>,
-    {
+    pub fn with_component<C: DynamicComponent + Default + DerefMut<Target = f64>>(
+        mut self,
+        id: impl Into<String>,
+    ) -> Self {
+        let id = id.into();
+
+        self.registry.spawn_fns.insert(
+            id.clone(),
+            Arc::new(|value, registry, entity_commands| {
+                let data: C::Data = serde_json::from_value(value).unwrap();
+                data.register::<C>(registry, entity_commands);
+            }),
+        );
         self.registry.add_dependency::<C>(id);
 
         self.add_system_fns.push(Arc::new(|app: &mut App| {
-            app.add_systems(Update, run_lazy::<C>);
+            app.add_systems(Update, (run_lazy::<C>, run_expr::<C>));
         }));
 
         self.add_system_fns.push(Arc::new(|app: &mut App| {
@@ -109,6 +114,14 @@ impl ScriptPlugin {
     pub fn with_function(mut self, id: impl Into<String>, builder: impl FunctionBuilder) -> Self {
         self.registry.add_function(id, builder);
         self
+    }
+}
+
+impl Default for ScriptPlugin {
+    fn default() -> Self {
+        Self::empty()
+            .with_function("+", function::add())
+            .with_function("@", function::query())
     }
 }
 

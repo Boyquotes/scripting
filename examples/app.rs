@@ -1,11 +1,14 @@
 use bevy::prelude::*;
 use scripting::{
-    expr::{function, ExprData},
-    DynamicComponent, LoadScript, ScriptBundle, ScriptPlugin, ScriptsReady,
+    expr::ExprData, DynamicComponent, LoadScript, ScriptBundle, ScriptPlugin, ScriptsReady,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
 pub struct Health(f64);
+
+impl DynamicComponent for Health {
+    type Data = ExprData;
+}
 
 #[derive(Default, Component, Deref, DerefMut)]
 pub struct Damage(f64);
@@ -19,11 +22,8 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ScriptPlugin::default()
-                .with_bundle::<Damage>("damage")
-                .with_dependency::<Health>("health")
-                .with_dependency::<Damage>("damage")
-                .with_function("+", function::add())
-                .with_function("@", function::query()),
+                .with_component::<Damage>("damage")
+                .with_component::<Health>("health"),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_sword, debug))
