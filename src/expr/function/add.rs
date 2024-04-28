@@ -1,7 +1,9 @@
+
+
 use super::{Function, FunctionBuilder};
 use crate::{
     expr::{Expr, StaticExpr},
-    Scope,
+    ScopeData,
 };
 
 pub fn add() -> impl FunctionBuilder {
@@ -17,7 +19,7 @@ impl Function for AddFunction {
         self.args.iter().map(|arg| arg.deps()).flatten().collect()
     }
 
-    fn run(&self, scope: &Scope) -> f64 {
+    fn run(&self, scope: &ScopeData) -> f64 {
         let mut sum = 0.;
 
         for arg in &self.args {

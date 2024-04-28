@@ -1,5 +1,7 @@
+
+
 use super::{Expr, StaticExpr};
-use crate::{Registry, Scope};
+use crate::{Registry, ScopeData};
 use bevy::{asset::Asset, reflect::TypePath};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
@@ -12,10 +14,10 @@ pub enum ExprData {
 }
 
 impl ExprData {
-    pub fn build(self, registry: &Registry) -> Scope {
+    pub fn build(self, registry: &Registry) -> ScopeData {
         let expr = self.build_expr(registry);
         let dependencies = expr.deps().into_iter().map(|id| (id, None)).collect();
-        Scope { expr, dependencies }
+        ScopeData { expr, dependencies}
     }
 
     pub fn build_expr(self, registry: &Registry) -> Expr {

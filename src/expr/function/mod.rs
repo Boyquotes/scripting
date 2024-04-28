@@ -1,12 +1,12 @@
 use super::Expr;
-use crate::Scope;
+use crate::ScopeData;
 use std::sync::Arc;
 
 mod add;
-pub use self::add::{add, AddFunction};
+pub use self::add::{AddFunction, add};
 
 mod query;
-pub use self::query::{query, QueryFunction};
+pub use self::query::{QueryFunction, query};
 
 pub trait FunctionBuilder: Send + Sync + 'static {
     type Function: Function;
@@ -29,7 +29,7 @@ where
 pub trait Function: Send + Sync + 'static {
     fn dependencies(&self) -> Vec<String>;
 
-    fn run(&self, scope: &Scope) -> f64;
+    fn run(&self, scope: &ScopeData) -> f64;
 }
 
 pub(crate) trait DynFunctionBuilder: Send + Sync + 'static {

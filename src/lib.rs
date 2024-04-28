@@ -2,7 +2,7 @@ use bevy::{
     app::{Plugin, Update},
     ecs::{
         component::Component,
-        query::Changed,
+        query::{Changed, With},
         system::{Query, Resource},
     },
     prelude::App,
@@ -24,7 +24,7 @@ use self::expr::{
 };
 
 mod scope;
-pub use scope::Scope;
+pub use scope::{Scope, ScopeData};
 
 #[derive(Component)]
 pub struct Depends<T> {
@@ -89,11 +89,13 @@ impl Plugin for ScriptPlugin {
     }
 }
 
-fn run_expr<T: Component + Default + DerefMut<Target = f64>>(
-    mut query: Query<(&mut T, &Scope), Changed<Scope>>,
-) {
-    for (mut value, expr) in &mut query {
-        if let Some(StaticExpr::Number(new)) = expr.run() {
+fn run_expr<T>(
+    mut query: Query<(&mut T,&ScopeData), (With<Scope<T>>, Changed<ScopeData>)>,
+) where
+    T: Component + Default + DerefMut<Target = f64>,
+{
+    for (mut value, scope_data) in &mut query {
+        if let Some(StaticExpr::Number(new)) = scope_data.run() {
             if **value != new {
                 let mut new_value = T::default();
                 *new_value = new;
@@ -104,10 +106,11 @@ fn run_expr<T: Component + Default + DerefMut<Target = f64>>(
     }
 }
 
-fn run_lazy<T: Component + Deref<Target = f64>>(
-    mut query: Query<(&mut Scope, &T, &Depends<T>), Changed<T>>,
-) {
-    for (mut scope, value, dep) in &mut query {
-        scope.set_dependency(&dep.id, **value);
+fn run_lazy<T>(mut query: Query<(&mut ScopeData, &T, &Depends<T>)>)
+where
+    T: Component + Deref<Target = f64>,
+{
+    for (mut scope_data, value, dep) in &mut query {
+        scope_data.set_dependency(&dep.id, **value);
     }
 }

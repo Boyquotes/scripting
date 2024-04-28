@@ -1,23 +1,32 @@
 use super::expr::{Expr, StaticExpr};
 use crate::{Depends, Registry};
 use bevy::ecs::{component::Component, system::EntityCommands};
-
 use std::{collections::HashMap, marker::PhantomData};
 
 #[derive(Component)]
-pub struct Scope {
+pub struct Scope<T> {
+    _marker: PhantomData<T>,
+}
+
+#[derive(Component)]
+pub struct ScopeData {
     pub(crate) expr: Expr,
     pub(crate) dependencies: HashMap<String, Option<f64>>,
 }
 
-impl Scope {
-    pub fn spawn(self, registry: &Registry, entity_commands: &mut EntityCommands) {
+impl ScopeData {
+    pub fn spawn<T: Component>(self, registry: &Registry, entity_commands: &mut EntityCommands) {
         for id in self.dependencies.keys() {
             let dep = registry.deps.get(id).unwrap();
             dep.spawn(id.clone(), entity_commands);
         }
 
-        entity_commands.insert(self);
+        entity_commands.insert((
+            self,
+            Scope {
+                _marker: PhantomData::<T>,
+            },
+        ));
     }
 
     pub fn set_dependency(&mut self, id: &str, value: f64) {

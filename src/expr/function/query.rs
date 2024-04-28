@@ -1,7 +1,6 @@
 use super::{Function, FunctionBuilder};
 use crate::{
-    expr::{Expr, StaticExpr},
-    Scope,
+    expr::{Expr, StaticExpr}, ScopeData,
 };
 
 pub fn query() -> impl FunctionBuilder {
@@ -25,7 +24,7 @@ impl Function for QueryFunction {
         vec![self.dependency.clone()]
     }
 
-    fn run(&self, scope: &Scope) -> f64 {
+    fn run(&self, scope: &ScopeData) -> f64 {
         scope.dependencies.get(&self.dependency).unwrap().unwrap()
     }
 }

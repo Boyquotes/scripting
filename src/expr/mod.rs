@@ -1,4 +1,5 @@
-use crate::Scope;
+use crate::ScopeData;
+
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -21,7 +22,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn run(&self, scope: &Scope) -> StaticExpr {
+    pub fn run(&self, scope: &ScopeData) -> StaticExpr {
         match self {
             Expr::Static(static_expr) => static_expr.clone(),
             Expr::Dynamic(fn_expr) => StaticExpr::Number(fn_expr.run(scope)),

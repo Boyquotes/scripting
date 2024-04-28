@@ -19,6 +19,7 @@ fn main() {
             DefaultPlugins,
             ScriptPlugin::default()
                 .with_dependency::<Health>("health")
+                .with_dependency::<Damage>("damage")
                 .with_function("+", function::add())
                 .with_function("@", function::query()),
         ))
@@ -44,7 +45,7 @@ fn spawn_expr(
         expr_data
             .clone()
             .build(&registry)
-            .spawn(&registry, &mut entity_commands);
+            .spawn::<Damage>(&registry, &mut entity_commands);
 
         asset_ids.push(asset_id);
     }
