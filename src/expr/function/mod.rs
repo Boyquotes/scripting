@@ -8,19 +8,19 @@ pub use self::add::{AddFunction, AddFunctionBuilder};
 mod query;
 pub use self::query::{QueryFunction, QueryFunctionBuilder};
 
-pub trait FunctionBuilder {
+pub trait FunctionBuilder: Send + Sync + 'static {
     type Function: Function;
 
     fn build(&self, args: Vec<Expr>) -> Self::Function;
 }
 
-pub trait Function: 'static {
+pub trait Function: Send + Sync + 'static {
     fn dependencies(&self) -> Vec<String>;
 
     fn run(&self, scope: &Scope) -> f64;
 }
 
-pub(crate) trait DynFunctionBuilder {
+pub(crate) trait DynFunctionBuilder: Send + Sync + 'static {
     fn dyn_build(&self, args: Vec<Expr>) -> Arc<dyn Function>;
 }
 

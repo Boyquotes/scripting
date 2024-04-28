@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::Arc};
+use bevy::ecs::{
+    component::Component,
+    system::{EntityCommands, Resource},
+};
+use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub mod expr;
 use self::expr::{
@@ -6,22 +10,58 @@ use self::expr::{
     Expr, StaticExpr,
 };
 
-#[derive(Default)]
+#[derive(Component)]
+pub struct Depends<T> {
+    _marker: PhantomData<T>,
+}
+
+trait Dependency: Send + Sync + 'static {
+    fn spawn(&self, _entity_commands: &mut EntityCommands) {}
+}
+
+impl<C: Component> Dependency for PhantomData<C> {
+    fn spawn(&self, entity_commands: &mut EntityCommands) {
+        entity_commands.insert(Depends {
+            _marker: PhantomData::<Self>,
+        });
+    }
+}
+
+#[derive(Component)]
+pub struct Health(f64);
+
+#[derive(Default, Resource)]
 pub struct Registry {
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
+    deps: HashMap<String, Arc<dyn Dependency>>,
 }
 
 impl Registry {
-    pub fn insert(&mut self, id: impl Into<String>, builder: impl FunctionBuilder + 'static) {
+    pub fn add_function(&mut self, id: impl Into<String>, builder: impl FunctionBuilder) {
         self.fns.insert(id.into(), Arc::new(builder));
     }
+
+    pub fn add_dependency<C: Component>(&mut self, id: impl Into<String>) {
+        self.deps.insert(id.into(), Arc::new(PhantomData::<C>));
+    }
 }
+
+#[derive(Component)]
 pub struct Scope {
     expr: Expr,
     dependencies: HashMap<String, Option<f64>>,
 }
 
 impl Scope {
+    pub fn spawn(self, registry: &Registry, entity_commands: &mut EntityCommands) {
+        for id in self.dependencies.keys() {
+            let dep = registry.deps.get(id).unwrap();
+            dep.spawn(entity_commands);
+        }
+
+        entity_commands.insert(self);
+    }
+
     pub fn set_dependency(&mut self, id: &str, value: f64) {
         *self.dependencies.get_mut(id).unwrap() = Some(value);
     }
@@ -46,14 +86,17 @@ mod tests {
     #[test]
     fn it_works() {
         let mut registry = Registry::default();
-        registry.insert("+", AddFunctionBuilder);
-        registry.insert("@", QueryFunctionBuilder);
 
-        let data: ExprData = serde_json::from_str(r#" [ "+", [ "@", "test" ], 2 ] "#).unwrap();
+        registry.add_dependency::<Health>("health");
+
+        registry.add_function("+", AddFunctionBuilder);
+        registry.add_function("@", QueryFunctionBuilder);
+
+        let data: ExprData = serde_json::from_str(r#" [ "+", [ "@", "health" ], 2 ] "#).unwrap();
         let mut scope = data.build(&registry);
         dbg!(scope.run());
 
-        scope.set_dependency("test", 3.);
+        scope.set_dependency("health", 3.);
         dbg!(scope.run());
     }
 }
