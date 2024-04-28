@@ -1,14 +1,15 @@
 use bevy::{
-    app::Plugin,
+    app::{Plugin, Update},
     ecs::{
         component::Component,
-        system::{EntityCommands, Resource},
+        query::Changed,
+        system::{EntityCommands, Query, Resource},
     },
     prelude::App,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
 use expr::ExprData;
-use std::{collections::HashMap, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub mod expr;
 use self::expr::{
@@ -18,17 +19,19 @@ use self::expr::{
 
 #[derive(Component)]
 pub struct Depends<T> {
+    id: String,
     _marker: PhantomData<T>,
 }
 
 trait Dependency: Send + Sync + 'static {
-    fn spawn(&self, entity_commands: &mut EntityCommands);
+    fn spawn(&self, id: String, entity_commands: &mut EntityCommands);
 }
 
 impl<C: Component> Dependency for PhantomData<C> {
-    fn spawn(&self, entity_commands: &mut EntityCommands) {
+    fn spawn(&self, id: String, entity_commands: &mut EntityCommands) {
         entity_commands.insert(Depends {
-            _marker: PhantomData::<Self>,
+            id,
+            _marker: PhantomData::<C>,
         });
     }
 }
@@ -59,7 +62,7 @@ impl Scope {
     pub fn spawn(self, registry: &Registry, entity_commands: &mut EntityCommands) {
         for id in self.dependencies.keys() {
             let dep = registry.deps.get(id).unwrap();
-            dep.spawn(entity_commands);
+            dep.spawn(id.clone(), entity_commands);
         }
 
         entity_commands.insert(self);
@@ -81,14 +84,20 @@ impl Scope {
 #[derive(Default)]
 pub struct ScriptPlugin {
     registry: Registry,
+    lazy_system_fns: Vec<Arc<dyn Fn(&mut App) + Send + Sync>>,
 }
 
 impl ScriptPlugin {
     pub fn with_dependency<C>(mut self, id: impl Into<String>) -> Self
     where
-        C: Component,
+        C: Component + Deref<Target = f64>,
     {
         self.registry.add_dependency::<C>(id);
+
+        self.lazy_system_fns.push(Arc::new(|app: &mut App| {
+            app.add_systems(Update, run_lazy::<C>);
+        }));
+
         self
     }
 
@@ -102,5 +111,17 @@ impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(JsonAssetPlugin::<ExprData>::new(&[]))
             .insert_resource(self.registry.clone());
+
+        for f in &self.lazy_system_fns {
+            f(app)
+        }
+    }
+}
+
+fn run_lazy<T: Component + Deref<Target = f64>>(
+    mut query: Query<(&mut Scope, &T, &Depends<T>), Changed<T>>,
+) {
+    for (mut scope, value, dep) in &mut query {
+        scope.set_dependency(&dep.id, **value);
     }
 }

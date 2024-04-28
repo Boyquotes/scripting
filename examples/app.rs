@@ -4,8 +4,11 @@ use scripting::{
     Registry, Scope, ScriptPlugin,
 };
 
-#[derive(PartialEq, Component)]
+#[derive(PartialEq, Component, Deref)]
 pub struct Health(f64);
+
+#[derive(PartialEq, Component, Deref)]
+pub struct Damage(f64);
 
 #[derive(Resource)]
 struct SwordHandle(Handle<ExprData>);
@@ -20,7 +23,7 @@ fn main() {
                 .with_function("@", function::query()),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (spawn_expr, run_expr, debug_health))
+        .add_systems(Update, (spawn_expr, run_expr, debug))
         .run();
 }
 
@@ -37,7 +40,7 @@ fn spawn_expr(
     let mut asset_ids = Vec::new();
 
     for (asset_id, expr_data) in expr_data_assets.iter_mut() {
-        let mut entity_commands = commands.spawn(Health(1.));
+        let mut entity_commands = commands.spawn((Health(10.), Damage(1.)));
         expr_data
             .clone()
             .build(&registry)
@@ -51,16 +54,18 @@ fn spawn_expr(
     }
 }
 
-fn run_expr(mut query: Query<(&mut Health, &Scope), Changed<Scope>>) {
-    for (mut health, expr) in &mut query {
+fn run_expr(mut query: Query<(&mut Damage, &Scope), Changed<Scope>>) {
+    for (mut dmg, expr) in &mut query {
+    
         if let Some(StaticExpr::Number(new_health)) = expr.run() {
-            health.set_if_neq(Health(new_health));
+        
+            dmg.set_if_neq(Damage(new_health));
         }
     }
 }
 
-fn debug_health(query: Query<&Health, Changed<Health>>) {
-    for health in &query {
-        dbg!(health.0);
+fn debug(query: Query<&Damage, Changed<Damage>>) {
+    for dmg in &query {
+        dbg!(dmg.0);
     }
 }
