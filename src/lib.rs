@@ -1,10 +1,8 @@
 use bevy::{
-    app::{Plugin, Update},
-    asset::Assets,
+    app::{Plugin},
     ecs::{
         component::Component,
-        query::{Changed},
-        system::{Commands, EntityCommands, Query, Res, ResMut, Resource},
+        system::{EntityCommands, Resource},
     },
     prelude::App,
 };
@@ -24,7 +22,7 @@ pub struct Depends<T> {
 }
 
 trait Dependency: Send + Sync + 'static {
-    fn spawn(&self, _entity_commands: &mut EntityCommands) {}
+    fn spawn(&self, entity_commands: &mut EntityCommands);
 }
 
 impl<C: Component> Dependency for PhantomData<C> {
@@ -35,8 +33,6 @@ impl<C: Component> Dependency for PhantomData<C> {
     }
 }
 
-#[derive(Component)]
-pub struct Health(f64);
 
 #[derive(Clone, Default, Resource)]
 pub struct Registry {
@@ -106,36 +102,6 @@ impl ScriptPlugin {
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(JsonAssetPlugin::<ExprData>::new(&[]))
-            .insert_resource(self.registry.clone())
-            .add_systems(Update, (spawn_expr, run_expr));
-    }
-}
-
-fn spawn_expr(
-    mut commands: Commands,
-    mut expr_data_assets: ResMut<Assets<ExprData>>,
-    registry: Res<Registry>,
-) {
-    let mut asset_ids = Vec::new();
-
-    for (asset_id, expr_data) in expr_data_assets.iter_mut() {
-        let mut entity_commands = commands.spawn_empty();
-        expr_data
-            .clone()
-            .build(&registry)
-            .spawn(&registry, &mut entity_commands);
-
-        asset_ids.push(asset_id);
-    }
-
-    for id in asset_ids {
-        expr_data_assets.remove(id);
-    }
-}
-
-fn run_expr(query: Query<&Scope, Changed<Scope>>) {
-    for expr in &query {
-        dbg!("run!");
-        expr.run();
+            .insert_resource(self.registry.clone());
     }
 }
