@@ -3,12 +3,13 @@ use bevy::{
     asset::Assets,
     ecs::{
         component::Component,
-        system::{Commands, EntityCommands, Res, ResMut, Resource},
+        query::{Changed},
+        system::{Commands, EntityCommands, Query, Res, ResMut, Resource},
     },
     prelude::App,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
-use expr::{ExprData};
+use expr::ExprData;
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub mod expr;
@@ -106,7 +107,7 @@ impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(JsonAssetPlugin::<ExprData>::new(&[]))
             .insert_resource(self.registry.clone())
-            .add_systems(Update, spawn_expr);
+            .add_systems(Update, (spawn_expr, run_expr));
     }
 }
 
@@ -132,3 +133,9 @@ fn spawn_expr(
     }
 }
 
+fn run_expr(query: Query<&Scope, Changed<Scope>>) {
+    for expr in &query {
+        dbg!("run!");
+        expr.run();
+    }
+}
