@@ -1,6 +1,6 @@
 use super::{Expr, StaticExpr};
-use crate::{Registry, ScopeData};
-use bevy::{asset::Asset, reflect::TypePath};
+use crate::{Register, Registry, ScopeData};
+use bevy::{asset::Asset, prelude::Component, reflect::TypePath};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
@@ -32,6 +32,16 @@ impl ExprData {
                 Expr::Dynamic(builder.dyn_build(args))
             }
         }
+    }
+}
+
+impl Register for ExprData {
+    fn register<C: Component>(
+        self,
+        registry: &Registry,
+        entity_commands: &mut bevy::ecs::system::EntityCommands,
+    ) {
+        self.build(registry).spawn::<C>(registry, entity_commands)
     }
 }
 

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use scripting::{
     expr::{function, ExprData},
-    DynamicComponent, LoadScript, Registry, ScriptBundle, ScriptPlugin, ScriptsReady,
+    DynamicComponent, LoadScript, ScriptBundle, ScriptPlugin, ScriptsReady,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
@@ -12,15 +12,6 @@ pub struct Damage(f64);
 
 impl DynamicComponent for Damage {
     type Data = ExprData;
-
-    fn register(
-        data: Self::Data,
-        registry: &Registry,
-        entity_commands: &mut bevy::ecs::system::EntityCommands,
-    ) {
-        data.build(registry)
-            .spawn::<Self>(registry, entity_commands)
-    }
 }
 
 fn main() {

@@ -41,9 +41,11 @@ pub struct Depends<T> {
 }
 
 pub trait DynamicComponent: Component {
-    type Data: for<'de> Deserialize<'de>;
+    type Data: for<'de> Deserialize<'de> + Register;
+}
 
-    fn register(data: Self::Data, registry: &Registry, entity_commands: &mut EntityCommands);
+pub trait Register {
+    fn register<C: Component>(self, registry: &Registry, entity_commands: &mut EntityCommands);
 }
 
 #[derive(Clone, Default, Resource)]
@@ -81,7 +83,7 @@ impl ScriptPlugin {
             id.into(),
             Arc::new(|value, registry, entity_commands| {
                 let data: T::Data = serde_json::from_value(value).unwrap();
-                T::register(data, registry, entity_commands);
+                data.register::<T>(registry, entity_commands);
             }),
         );
         self
