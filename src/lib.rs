@@ -112,34 +112,59 @@ impl<'de> Deserialize<'de> for FunctionExprData {
     }
 }
 
+struct AddFunctionBuilder;
+
+impl FunctionBuilder for AddFunctionBuilder {
+    fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
+        Arc::new(AddFunction { args })
+    }
+}
+
+struct AddFunction {
+    args: Vec<Expr>,
+}
+
+impl Function for AddFunction {
+    fn dependencies(&self) -> Vec<String> {
+        self.args.iter().map(|arg| arg.deps()).flatten().collect()
+    }
+}
+
+struct QueryFunctionBuilder;
+
+impl FunctionBuilder for QueryFunctionBuilder {
+    fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
+        if let Some(Expr::Static(StaticExpr::String(s))) = args.first() {
+            Arc::new(QueryFunction {
+                dependency: s.clone(),
+            })
+        } else {
+            todo!()
+        }
+    }
+}
+
+struct QueryFunction {
+    dependency: String,
+}
+
+impl Function for QueryFunction {
+    fn dependencies(&self) -> Vec<String> {
+        vec![self.dependency.clone()]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    struct A;
-
-    impl FunctionBuilder for A {
-        fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
-            Arc::new(B { args })
-        }
-    }
-
-    struct B {
-        args: Vec<Expr>,
-    }
-
-    impl Function for B {
-        fn dependencies(&self) -> Vec<String> {
-            self.args.iter().map(|arg| arg.deps()).flatten().collect()
-        }
-    }
-
     #[test]
     fn it_works() {
         let mut registry = Registry::default();
-        registry.insert("add", A);
+        registry.insert("+", AddFunctionBuilder);
+        registry.insert("@", QueryFunctionBuilder);
 
-        let data: ExprData = serde_json::from_str(r#" [ "add", 1, 2 ] "#).unwrap();
+        let data: ExprData = serde_json::from_str(r#" [ "+", [ "@", "test" ], 2 ] "#).unwrap();
         let expr = data.build(&registry);
         dbg!(expr.deps());
     }
