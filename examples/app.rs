@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use scripting::{
     expr::{function, ExprData},
-    ComponentsData, DynamicComponent, Registry, ScriptPlugin,
+    AssetRegistry, DynamicComponent, Registry, ScriptBundle, ScriptPlugin,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
@@ -23,9 +23,6 @@ impl DynamicComponent for Damage {
     }
 }
 
-#[derive(Resource)]
-struct SwordHandle(Handle<ComponentsData>);
-
 fn main() {
     App::new()
         .add_plugins((
@@ -38,32 +35,25 @@ fn main() {
                 .with_function("@", function::query()),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (spawn_expr, debug))
+        .add_systems(Update, debug)
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let handle = asset_server.load("sword.json");
-    commands.insert_resource(SwordHandle(handle));
-}
-
-fn spawn_expr(
+fn setup(
     mut commands: Commands,
-    mut expr_data_assets: ResMut<Assets<ComponentsData>>,
-    registry: Res<Registry>,
+    asset_server: Res<AssetServer>,
+    mut asset_registry: ResMut<AssetRegistry>,
 ) {
-    let mut asset_ids = Vec::new();
+    commands.spawn((
+        Health(10.),
+        Damage(1.),
+        ScriptBundle(String::from("sword.json")),
+    ));
 
-    for (asset_id, data) in expr_data_assets.iter_mut() {
-        let mut entity_commands = commands.spawn((Health(10.), Damage(1.)));
-        registry.spawn(&mut entity_commands, data.0.clone());
-
-        asset_ids.push(asset_id);
-    }
-
-    for id in asset_ids {
-        expr_data_assets.remove(id);
-    }
+    let handle = asset_server.load("sword.json");
+    asset_registry
+        .handles
+        .insert(String::from("sword.json"), handle);
 }
 
 fn debug(query: Query<&Damage, Changed<Damage>>) {

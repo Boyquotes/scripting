@@ -1,10 +1,11 @@
 use bevy::{
     app::{Plugin, Update},
-    asset::Asset,
+    asset::{Asset, Assets, Handle},
     ecs::{
         component::Component,
+        entity::Entity,
         query::{Changed, With},
-        system::{EntityCommands, Query, Resource},
+        system::{Commands, EntityCommands, Query, Res, ResMut, Resource},
     },
     prelude::App,
     reflect::TypePath,
@@ -109,10 +110,37 @@ impl ScriptPlugin {
 impl Plugin for ScriptPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(JsonAssetPlugin::<ComponentsData>::new(&[]))
-            .insert_resource(self.registry.clone());
+            .insert_resource(self.registry.clone())
+            .init_resource::<AssetRegistry>()
+            .add_systems(Update, spawn_expr);
 
         for f in &self.add_system_fns {
             f(app)
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ScriptBundle(pub String);
+
+#[derive(Default, Resource)]
+pub struct AssetRegistry {
+    pub handles: HashMap<String, Handle<ComponentsData>>,
+}
+
+fn spawn_expr(
+    mut commands: Commands,
+    asset_registry: Res<AssetRegistry>,
+    assets: Res<Assets<ComponentsData>>,
+    registry: Res<Registry>,
+    query: Query<(Entity, &ScriptBundle)>,
+) {
+    for (entity, bundle) in &query {
+        let handle = asset_registry.handles.get(&bundle.0).unwrap();
+        if let Some(data) = assets.get(handle) {
+            registry.spawn(&mut commands.entity(entity), data.0.clone());
+
+            commands.entity(entity).remove::<ScriptBundle>();
         }
     }
 }
