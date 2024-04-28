@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use scripting::{
-    expr::{
-        function::{AddFunctionBuilder, QueryFunctionBuilder},
-        ExprData, StaticExpr,
-    },
+    expr::{function, ExprData, StaticExpr},
     Registry, Scope, ScriptPlugin,
 };
 
@@ -19,8 +16,8 @@ fn main() {
             DefaultPlugins,
             ScriptPlugin::default()
                 .with_dependency::<Health>("health")
-                .with_function("+", AddFunctionBuilder)
-                .with_function("@", QueryFunctionBuilder),
+                .with_function("+", function::add())
+                .with_function("@", function::query()),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_expr, run_expr, debug_health))

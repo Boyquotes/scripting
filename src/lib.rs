@@ -1,5 +1,5 @@
 use bevy::{
-    app::{Plugin},
+    app::Plugin,
     ecs::{
         component::Component,
         system::{EntityCommands, Resource},
@@ -32,7 +32,6 @@ impl<C: Component> Dependency for PhantomData<C> {
         });
     }
 }
-
 
 #[derive(Clone, Default, Resource)]
 pub struct Registry {

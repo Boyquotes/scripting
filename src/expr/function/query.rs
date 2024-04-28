@@ -4,12 +4,8 @@ use crate::{
     Scope,
 };
 
-pub struct QueryFunctionBuilder;
-
-impl FunctionBuilder for QueryFunctionBuilder {
-    type Function = QueryFunction;
-
-    fn build(&self, args: Vec<Expr>) -> QueryFunction {
+pub fn query() -> impl FunctionBuilder {
+    |args: Vec<Expr>| {
         if let Some(Expr::Static(StaticExpr::String(s))) = args.first() {
             QueryFunction {
                 dependency: s.clone(),

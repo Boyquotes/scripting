@@ -4,14 +4,8 @@ use crate::{
     Scope,
 };
 
-pub struct AddFunctionBuilder;
-
-impl FunctionBuilder for AddFunctionBuilder {
-    type Function = AddFunction;
-
-    fn build(&self, args: Vec<Expr>) -> Self::Function {
-        AddFunction { args }
-    }
+pub fn add() -> impl FunctionBuilder {
+    |args| AddFunction { args }
 }
 
 pub struct AddFunction {
