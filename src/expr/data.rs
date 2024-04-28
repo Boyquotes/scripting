@@ -1,5 +1,3 @@
-
-
 use super::{Expr, StaticExpr};
 use crate::{Registry, ScopeData};
 use bevy::{asset::Asset, reflect::TypePath};
@@ -17,7 +15,7 @@ impl ExprData {
     pub fn build(self, registry: &Registry) -> ScopeData {
         let expr = self.build_expr(registry);
         let dependencies = expr.deps().into_iter().map(|id| (id, None)).collect();
-        ScopeData { expr, dependencies}
+        ScopeData { expr, dependencies }
     }
 
     pub fn build_expr(self, registry: &Registry) -> Expr {

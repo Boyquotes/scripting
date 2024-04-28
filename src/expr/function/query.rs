@@ -1,6 +1,7 @@
 use super::{Function, FunctionBuilder};
 use crate::{
-    expr::{Expr, StaticExpr}, ScopeData,
+    expr::{Expr, StaticExpr},
+    ScopeData,
 };
 
 pub fn query() -> impl FunctionBuilder {

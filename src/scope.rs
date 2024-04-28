@@ -5,7 +5,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 #[derive(Component)]
 pub struct Scope<T> {
-    _marker: PhantomData<T>,
+    pub _marker: PhantomData<T>,
 }
 
 #[derive(Component)]

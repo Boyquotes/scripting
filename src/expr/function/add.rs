@@ -1,5 +1,3 @@
-
-
 use super::{Function, FunctionBuilder};
 use crate::{
     expr::{Expr, StaticExpr},

@@ -3,10 +3,10 @@ use crate::ScopeData;
 use std::sync::Arc;
 
 mod add;
-pub use self::add::{AddFunction, add};
+pub use self::add::{add, AddFunction};
 
 mod query;
-pub use self::query::{QueryFunction, query};
+pub use self::query::{query, QueryFunction};
 
 pub trait FunctionBuilder: Send + Sync + 'static {
     type Function: Function;

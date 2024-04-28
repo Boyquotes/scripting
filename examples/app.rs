@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use scripting::{
     expr::{function, ExprData},
-    Registry, ScriptPlugin,
+    ComponentsData, DynamicComponent, Registry, ScriptPlugin,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
@@ -10,14 +10,28 @@ pub struct Health(f64);
 #[derive(Default, Component, Deref, DerefMut)]
 pub struct Damage(f64);
 
+impl DynamicComponent for Damage {
+    type Data = ExprData;
+
+    fn register(
+        data: Self::Data,
+        registry: &Registry,
+        entity_commands: &mut bevy::ecs::system::EntityCommands,
+    ) {
+        data.build(registry)
+            .spawn::<Self>(registry, entity_commands)
+    }
+}
+
 #[derive(Resource)]
-struct SwordHandle(Handle<ExprData>);
+struct SwordHandle(Handle<ComponentsData>);
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
             ScriptPlugin::default()
+                .with_bundle::<Damage>("damage")
                 .with_dependency::<Health>("health")
                 .with_dependency::<Damage>("damage")
                 .with_function("+", function::add())
@@ -35,17 +49,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn spawn_expr(
     mut commands: Commands,
-    mut expr_data_assets: ResMut<Assets<ExprData>>,
+    mut expr_data_assets: ResMut<Assets<ComponentsData>>,
     registry: Res<Registry>,
 ) {
     let mut asset_ids = Vec::new();
 
-    for (asset_id, expr_data) in expr_data_assets.iter_mut() {
+    for (asset_id, data) in expr_data_assets.iter_mut() {
         let mut entity_commands = commands.spawn((Health(10.), Damage(1.)));
-        expr_data
-            .clone()
-            .build(&registry)
-            .spawn::<Damage>(&registry, &mut entity_commands);
+        registry.spawn(&mut entity_commands, data.0.clone());
 
         asset_ids.push(asset_id);
     }
