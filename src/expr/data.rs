@@ -1,9 +1,10 @@
 use super::{Expr, StaticExpr};
 use crate::{Registry, Scope};
+use bevy::{asset::Asset, reflect::TypePath};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Asset, TypePath)]
 #[serde(untagged)]
 pub enum ExprData {
     Static(StaticExpr),
@@ -34,7 +35,7 @@ impl ExprData {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FunctionExprData {
     pub ident: String,
     pub args: Vec<ExprData>,

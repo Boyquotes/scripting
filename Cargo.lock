@@ -170,6 +170,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.82"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f538837af36e6f6a9be0faa67f9a314f8119e4e4b5867c6ab40ed60360142519"
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -403,6 +409,19 @@ dependencies = [
  "bevy_utils",
  "cpal",
  "rodio",
+]
+
+[[package]]
+name = "bevy_common_assets"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17516cc66d8c00ea3fdba144d518c20f1a8d8c5a7d14af3642dc2488e4bdb3a6"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -2936,6 +2955,7 @@ name = "scripting"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_common_assets",
  "serde",
  "serde_json",
 ]

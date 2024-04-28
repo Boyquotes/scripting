@@ -1,7 +1,14 @@
-use bevy::ecs::{
-    component::Component,
-    system::{EntityCommands, Resource},
+use bevy::{
+    app::{Plugin, Update},
+    asset::Assets,
+    ecs::{
+        component::Component,
+        system::{Commands, EntityCommands, Res, ResMut, Resource},
+    },
+    prelude::App,
 };
+use bevy_common_assets::json::JsonAssetPlugin;
+use expr::{ExprData};
 use std::{collections::HashMap, marker::PhantomData, sync::Arc};
 
 pub mod expr;
@@ -30,7 +37,7 @@ impl<C: Component> Dependency for PhantomData<C> {
 #[derive(Component)]
 pub struct Health(f64);
 
-#[derive(Default, Resource)]
+#[derive(Clone, Default, Resource)]
 pub struct Registry {
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
     deps: HashMap<String, Arc<dyn Dependency>>,
@@ -75,28 +82,53 @@ impl Scope {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::expr::{
-        function::{AddFunctionBuilder, QueryFunctionBuilder},
-        ExprData,
-    };
+#[derive(Default)]
+pub struct ScriptPlugin {
+    registry: Registry,
+}
 
-    #[test]
-    fn it_works() {
-        let mut registry = Registry::default();
+impl ScriptPlugin {
+    pub fn with_dependency<C>(mut self, id: impl Into<String>) -> Self
+    where
+        C: Component,
+    {
+        self.registry.add_dependency::<C>(id);
+        self
+    }
 
-        registry.add_dependency::<Health>("health");
-
-        registry.add_function("+", AddFunctionBuilder);
-        registry.add_function("@", QueryFunctionBuilder);
-
-        let data: ExprData = serde_json::from_str(r#" [ "+", [ "@", "health" ], 2 ] "#).unwrap();
-        let mut scope = data.build(&registry);
-        dbg!(scope.run());
-
-        scope.set_dependency("health", 3.);
-        dbg!(scope.run());
+    pub fn with_function(mut self, id: impl Into<String>, builder: impl FunctionBuilder) -> Self {
+        self.registry.add_function(id, builder);
+        self
     }
 }
+
+impl Plugin for ScriptPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(JsonAssetPlugin::<ExprData>::new(&[]))
+            .insert_resource(self.registry.clone())
+            .add_systems(Update, spawn_expr);
+    }
+}
+
+fn spawn_expr(
+    mut commands: Commands,
+    mut expr_data_assets: ResMut<Assets<ExprData>>,
+    registry: Res<Registry>,
+) {
+    let mut asset_ids = Vec::new();
+
+    for (asset_id, expr_data) in expr_data_assets.iter_mut() {
+        let mut entity_commands = commands.spawn_empty();
+        expr_data
+            .clone()
+            .build(&registry)
+            .spawn(&registry, &mut entity_commands);
+
+        asset_ids.push(asset_id);
+    }
+
+    for id in asset_ids {
+        expr_data_assets.remove(id);
+    }
+}
+
