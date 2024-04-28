@@ -1,12 +1,14 @@
-use expr::{function::FunctionBuilder, Expr, StaticExpr};
-
 use std::{collections::HashMap, sync::Arc};
 
 pub mod expr;
+use self::expr::{
+    function::{DynFunctionBuilder, FunctionBuilder},
+    Expr, StaticExpr,
+};
 
 #[derive(Default)]
 pub struct Registry {
-    fns: HashMap<String, Arc<dyn FunctionBuilder>>,
+    fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
 }
 
 impl Registry {

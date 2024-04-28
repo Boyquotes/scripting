@@ -1,4 +1,4 @@
-use super::{Expr, FunctionExpr, StaticExpr};
+use super::{Expr, StaticExpr};
 use crate::{Registry, Scope};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
@@ -28,9 +28,7 @@ impl ExprData {
                     .into_iter()
                     .map(|arg| arg.build_expr(registry))
                     .collect();
-                Expr::Dynamic(FunctionExpr {
-                    f: builder.build(args),
-                })
+                Expr::Dynamic(builder.dyn_build(args))
             }
         }
     }

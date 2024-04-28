@@ -1,6 +1,6 @@
 use crate::Scope;
 use serde::Deserialize;
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
 mod data;
 pub use self::data::{ExprData, FunctionExprData};
@@ -15,34 +15,23 @@ pub enum StaticExpr {
     String(String),
 }
 
-#[derive(Debug)]
 pub enum Expr {
     Static(StaticExpr),
-    Dynamic(FunctionExpr),
+    Dynamic(Arc<dyn Function>),
 }
 
 impl Expr {
     pub fn run(&self, scope: &Scope) -> StaticExpr {
         match self {
-            Expr::Static(s) => s.clone(),
-            Expr::Dynamic(fn_expr) => StaticExpr::Number(fn_expr.f.run(scope)),
+            Expr::Static(static_expr) => static_expr.clone(),
+            Expr::Dynamic(fn_expr) => StaticExpr::Number(fn_expr.run(scope)),
         }
     }
 
     pub fn deps(&self) -> Vec<String> {
         match self {
             Expr::Static(_) => Vec::new(),
-            Expr::Dynamic(fn_expr) => fn_expr.f.dependencies(),
+            Expr::Dynamic(fn_expr) => fn_expr.dependencies(),
         }
-    }
-}
-
-pub struct FunctionExpr {
-    pub f: Arc<dyn Function>,
-}
-
-impl fmt::Debug for FunctionExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("FunctionExpr").finish()
     }
 }

@@ -3,13 +3,14 @@ use crate::{
     expr::{Expr, StaticExpr},
     Scope,
 };
-use std::sync::Arc;
 
 pub struct AddFunctionBuilder;
 
 impl FunctionBuilder for AddFunctionBuilder {
-    fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
-        Arc::new(AddFunction { args })
+    type Function = AddFunction;
+
+    fn build(&self, args: Vec<Expr>) -> Self::Function {
+        AddFunction { args }
     }
 }
 

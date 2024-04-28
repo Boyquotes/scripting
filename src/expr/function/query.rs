@@ -3,16 +3,17 @@ use crate::{
     expr::{Expr, StaticExpr},
     Scope,
 };
-use std::sync::Arc;
 
 pub struct QueryFunctionBuilder;
 
 impl FunctionBuilder for QueryFunctionBuilder {
-    fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
+    type Function = QueryFunction;
+
+    fn build(&self, args: Vec<Expr>) -> QueryFunction {
         if let Some(Expr::Static(StaticExpr::String(s))) = args.first() {
-            Arc::new(QueryFunction {
+            QueryFunction {
                 dependency: s.clone(),
-            })
+            }
         } else {
             todo!()
         }
