@@ -1,5 +1,14 @@
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::{collections::HashMap, fmt, sync::Arc};
+
+pub trait FunctionBuilder {
+    fn build(&self, args: Vec<Expr>) -> Arc<dyn Function>;
+}
+
+pub trait Function {
+    fn dependencies(&self) -> Vec<String>;
+}
 
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -10,18 +19,74 @@ pub enum StaticExpr {
 
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
+pub enum ExprData {
+    Static(StaticExpr),
+    Dynamic(FunctionExprData),
+}
+
+#[derive(Default)]
+pub struct Registry {
+    fns: HashMap<String, Arc<dyn FunctionBuilder>>,
+}
+
+impl Registry {
+    pub fn insert(&mut self, id: impl Into<String>, builder: impl FunctionBuilder + 'static) {
+        self.fns.insert(id.into(), Arc::new(builder));
+    }
+}
+
+impl ExprData {
+    pub fn build(self, registry: &Registry) -> Expr {
+        match self {
+            ExprData::Static(s) => Expr::Static(s),
+            ExprData::Dynamic(fn_expr) => {
+                let builder = registry.fns.get(&fn_expr.ident).unwrap();
+
+                let args = fn_expr
+                    .args
+                    .into_iter()
+                    .map(|arg| arg.build(registry))
+                    .collect();
+                Expr::Dynamic(FunctionExpr {
+                    f: builder.build(args),
+                })
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum Expr {
     Static(StaticExpr),
     Dynamic(FunctionExpr),
 }
 
-#[derive(Debug, PartialEq)]
-pub struct FunctionExpr {
-    pub ident: String,
-    pub args: Vec<Expr>,
+impl Expr {
+    pub fn deps(&self) -> Vec<String> {
+        match self {
+            Expr::Static(_) => Vec::new(),
+            Expr::Dynamic(fn_expr) => fn_expr.f.dependencies(),
+        }
+    }
 }
 
-impl<'de> Deserialize<'de> for FunctionExpr {
+pub struct FunctionExpr {
+    pub f: Arc<dyn Function>,
+}
+
+impl fmt::Debug for FunctionExpr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FunctionExpr").finish()
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FunctionExprData {
+    pub ident: String,
+    pub args: Vec<ExprData>,
+}
+
+impl<'de> Deserialize<'de> for FunctionExprData {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -40,9 +105,42 @@ impl<'de> Deserialize<'de> for FunctionExpr {
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| serde::de::Error::custom("Invalid JSON."))?;
 
-            Ok(FunctionExpr { ident, args })
+            Ok(FunctionExprData { ident, args })
         } else {
             Err(serde::de::Error::custom("Expected array."))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct A;
+
+    impl FunctionBuilder for A {
+        fn build(&self, args: Vec<Expr>) -> Arc<dyn Function> {
+            Arc::new(B { args })
+        }
+    }
+
+    struct B {
+        args: Vec<Expr>,
+    }
+
+    impl Function for B {
+        fn dependencies(&self) -> Vec<String> {
+            self.args.iter().map(|arg| arg.deps()).flatten().collect()
+        }
+    }
+
+    #[test]
+    fn it_works() {
+        let mut registry = Registry::default();
+        registry.insert("add", A);
+
+        let data: ExprData = serde_json::from_str(r#" [ "add", 1, 2 ] "#).unwrap();
+        let expr = data.build(&registry);
+        dbg!(expr.deps());
     }
 }
