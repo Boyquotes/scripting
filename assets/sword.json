@@ -1,4 +1,4 @@
 {
   "id": "sword",
-  "damage": ["+", 2, ["@", "health"]]
+  "damage": ["+", ["@", "durability"], ["@", "max_durability"]]
 }

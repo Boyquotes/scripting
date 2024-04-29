@@ -4,9 +4,16 @@ use scripting::{
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
-pub struct Health(f64);
+pub struct Durability(f64);
 
-impl ScriptComponent for Health {
+impl ScriptComponent for Durability {
+    type Data = ExprData;
+}
+
+#[derive(Default, Component, Deref, DerefMut)]
+pub struct MaxDurability(f64);
+
+impl ScriptComponent for MaxDurability {
     type Data = ExprData;
 }
 
@@ -23,7 +30,8 @@ fn main() {
             DefaultPlugins,
             ScriptPlugin::default()
                 .with_derived::<Damage>("damage")
-                .with_derived::<Health>("health"),
+                .with_derived::<Durability>("durability")
+                .with_derived::<MaxDurability>("max_durability"),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_sword, debug))
@@ -36,7 +44,11 @@ fn setup(mut asset_events: EventWriter<LoadScript>) {
 
 fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
     for _event in events.read() {
-        commands.spawn((Health(10.), Damage(1.), ScriptBundle::new("sword")));
+        commands.spawn((
+            Durability(0.1),
+            MaxDurability(1.),
+            ScriptBundle::new("sword"),
+        ));
     }
 }
 
@@ -45,4 +57,3 @@ fn debug(query: Query<&Damage, Changed<Damage>>) {
         dbg!(dmg.0);
     }
 }
-    

@@ -56,8 +56,7 @@ type SpawnFn = Arc<dyn Fn(Value, &Registry, &AssetServer, &mut EntityCommands) +
 
 #[derive(Clone, Default, Resource)]
 pub struct Registry {
-    spawn_fns:
-        HashMap<String, SpawnFn>,
+    spawn_fns: HashMap<String, SpawnFn>,
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
     deps: HashMap<String, Arc<dyn Dependency>>,
 }
@@ -162,20 +161,28 @@ fn spawn_expr(
     }
 }
 
-type ExprQuery<'w, 's, T> =
-    Query<'w, 's, (&'static mut T, &'static ScopeData), (With<Scope<T>>, Changed<ScopeData>)>;
+type ExprQuery<'w, 's, T> = Query<
+    'w,
+    's,
+    (Entity, Option<&'static mut T>, &'static ScopeData),
+    (With<Scope<T>>, Changed<ScopeData>),
+>;
 
-fn run_expr<T>(mut query: ExprQuery<T>)
+fn run_expr<T>(mut commands: Commands, mut query: ExprQuery<T>)
 where
     T: Component + Default + DerefMut<Target = f64>,
 {
-    for (mut value, scope_data) in &mut query {
+    for (entity, value, scope_data) in &mut query {
         if let Some(StaticExpr::Number(new)) = scope_data.run() {
-            if **value != new {
+            if let Some(mut v) = value {
+                if **v != new {
+                    **v = new;
+                }
+            } else {
                 let mut new_value = T::default();
                 *new_value = new;
 
-                *value = new_value;
+                commands.entity(entity).insert(new_value);
             }
         }
     }

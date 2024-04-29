@@ -1,17 +1,14 @@
-use bevy::{
-    app::{Plugin, Update},
-    prelude::App,
-};
-use bevy_common_assets::json::JsonAssetPlugin;
 use crate::{
     expr::function::{self, FunctionBuilder},
     load_assets, run_expr, run_lazy, spawn_expr, AssetRegistry, ComponentsData, LoadScript,
     Register, Registry, ScriptComponent, ScriptState, ScriptsReady,
 };
-use std::{
-    ops::{DerefMut},
-    sync::Arc,
+use bevy::{
+    app::{Plugin, Update},
+    prelude::App,
 };
+use bevy_common_assets::json::JsonAssetPlugin;
+use std::{ops::DerefMut, sync::Arc};
 
 type SystemFn = Arc<dyn Fn(&mut App) + Send + Sync>;
 
@@ -31,13 +28,6 @@ impl ScriptPlugin {
     pub fn with_component<C: ScriptComponent>(mut self, id: impl Into<String>) -> Self {
         let id = id.into();
 
-        self.registry.spawn_fns.insert(
-            id.clone(),
-            Arc::new(|value, registry, asset_server, entity_commands| {
-                let data: C::Data = serde_json::from_value(value).unwrap();
-                data.register::<C>(registry, asset_server, entity_commands);
-            }),
-        );
         self.registry.add_dependency::<C>(id);
 
         self
