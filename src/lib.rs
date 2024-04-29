@@ -10,9 +10,6 @@ use bevy::{
     },
     reflect::TypePath,
 };
-
-
-use scope::Dependency;
 use serde::Deserialize;
 use serde_json::Value;
 use std::{
@@ -33,6 +30,7 @@ mod plugin;
 pub use self::plugin::ScriptPlugin;
 
 mod scope;
+use self::scope::Dependency;
 pub use scope::{Scope, ScopeData};
 
 #[derive(Component)]
@@ -54,10 +52,12 @@ pub trait Register {
     );
 }
 
+type SpawnFn = Arc<dyn Fn(Value, &Registry, &AssetServer, &mut EntityCommands) + Send + Sync>;
+
 #[derive(Clone, Default, Resource)]
 pub struct Registry {
     spawn_fns:
-        HashMap<String, Arc<dyn Fn(Value, &Self, &AssetServer, &mut EntityCommands) + Send + Sync>>,
+        HashMap<String, SpawnFn>,
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
     deps: HashMap<String, Arc<dyn Dependency>>,
 }
@@ -116,6 +116,7 @@ fn load_assets(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_expr(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -161,7 +162,10 @@ fn spawn_expr(
     }
 }
 
-fn run_expr<T>(mut query: Query<(&mut T, &ScopeData), (With<Scope<T>>, Changed<ScopeData>)>)
+type ExprQuery<'w, 's, T> =
+    Query<'w, 's, (&'static mut T, &'static ScopeData), (With<Scope<T>>, Changed<ScopeData>)>;
+
+fn run_expr<T>(mut query: ExprQuery<T>)
 where
     T: Component + Default + DerefMut<Target = f64>,
 {

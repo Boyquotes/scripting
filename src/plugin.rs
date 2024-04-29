@@ -3,22 +3,21 @@ use bevy::{
     prelude::App,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
-
 use crate::{
     expr::function::{self, FunctionBuilder},
     load_assets, run_expr, run_lazy, spawn_expr, AssetRegistry, ComponentsData, LoadScript,
     Register, Registry, ScriptComponent, ScriptState, ScriptsReady,
 };
-
-
 use std::{
     ops::{DerefMut},
     sync::Arc,
 };
 
+type SystemFn = Arc<dyn Fn(&mut App) + Send + Sync>;
+
 pub struct ScriptPlugin {
     registry: Registry,
-    add_system_fns: Vec<Arc<dyn Fn(&mut App) + Send + Sync>>,
+    add_system_fns: Vec<SystemFn>,
 }
 
 impl ScriptPlugin {

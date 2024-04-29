@@ -22,8 +22,8 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ScriptPlugin::default()
-                .with_component::<Damage>("damage")
-                .with_component::<Health>("health"),
+                .with_derived::<Damage>("damage")
+                .with_derived::<Health>("health"),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_sword, debug))

@@ -14,7 +14,7 @@ pub struct AddFunction {
 
 impl Function for AddFunction {
     fn dependencies(&self) -> Vec<String> {
-        self.args.iter().map(|arg| arg.deps()).flatten().collect()
+        self.args.iter().flat_map(|arg| arg.deps()).collect()
     }
 
     fn run(&self, scope: &ScopeData) -> f64 {
