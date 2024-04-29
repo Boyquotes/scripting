@@ -64,8 +64,10 @@ impl ScriptPlugin {
 impl Default for ScriptPlugin {
     fn default() -> Self {
         Self::empty()
-            .with_function("+", function::add())
             .with_function("@", function::query())
+            .with_function("+", function::add())
+            .with_function("-", function::sub())
+            .with_function("/", function::div())
     }
 }
 
