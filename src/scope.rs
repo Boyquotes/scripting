@@ -30,7 +30,9 @@ impl ScopeData {
     }
 
     pub fn set_dependency(&mut self, id: &str, value: f64) {
-        *self.dependencies.get_mut(id).unwrap() = Some(value);
+        if let Some(dep) = self.dependencies.get_mut(id) {
+            *dep = Some(value);
+        }
     }
 
     pub fn run(&self) -> Option<StaticExpr> {
