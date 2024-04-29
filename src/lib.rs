@@ -13,7 +13,6 @@ use bevy::{
     reflect::TypePath,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
-
 use expr::function;
 use scope::Dependency;
 use serde::Deserialize;
@@ -41,7 +40,7 @@ pub struct Depends<T> {
     _marker: PhantomData<T>,
 }
 
-pub trait DynamicComponent: Component {
+pub trait ScriptComponent: Component {
     type Data: for<'de> Deserialize<'de> + Register;
 }
 
@@ -85,7 +84,7 @@ impl ScriptPlugin {
         }
     }
 
-    pub fn with_component<C: DynamicComponent + Default + DerefMut<Target = f64>>(
+    pub fn with_component<C: ScriptComponent + Default + DerefMut<Target = f64>>(
         mut self,
         id: impl Into<String>,
     ) -> Self {
@@ -152,6 +151,7 @@ impl ScriptBundle {
 
 #[derive(Default, Resource)]
 pub struct AssetRegistry {
+    pub pending_handles: HashMap<String, Handle<ComponentsData>>,
     pub handles: HashMap<String, Handle<ComponentsData>>,
 }
 
@@ -163,9 +163,11 @@ fn load_assets(
 ) {
     for event in asset_events.read() {
         let handle = asset_server.load(event.path.clone());
+
+        // TODO path or string?
         asset_registry
-            .handles
-            .insert(String::from("sword.json"), handle);
+            .pending_handles
+            .insert(event.path.to_string_lossy().to_string(), handle);
 
         state.set(ScriptState::Loading);
     }
@@ -173,32 +175,45 @@ fn load_assets(
 
 fn spawn_expr(
     mut commands: Commands,
-    asset_registry: Res<AssetRegistry>,
-    assets: Res<Assets<ComponentsData>>,
+    mut asset_registry: ResMut<AssetRegistry>,
+    mut assets: ResMut<Assets<ComponentsData>>,
     registry: Res<Registry>,
     query: Query<(Entity, &ScriptBundle)>,
     mut asset_events: EventWriter<ScriptsReady>,
     state: Res<State<ScriptState>>,
     mut next_state: ResMut<NextState<ScriptState>>,
 ) {
-    let mut is_ready = true;
+    let mut ready_handles = Vec::new();
+    for (path, handle) in &asset_registry.pending_handles {
+        if let Some(data) = assets.get_mut(handle) {
+            let id = data.0.remove("id").unwrap();
+            let id_s = id.as_str().unwrap().to_owned();
 
-    for (entity, bundle) in &query {
-        let handle = asset_registry.handles.get(&bundle.0).unwrap();
-        if let Some(data) = assets.get(handle) {
-            registry.spawn(&mut commands.entity(entity), data.0.clone());
-
-            commands.entity(entity).remove::<ScriptBundle>();
-        } else {
-            is_ready = false;
+            ready_handles.push((path.clone(), id_s, handle.clone()));
         }
     }
 
-    if is_ready {
-        if *state == ScriptState::Loading {
-            next_state.set(ScriptState::Ready);
-            asset_events.send(ScriptsReady);
+    for (path, id, handle) in ready_handles {
+        asset_registry.pending_handles.remove(&path);
+        asset_registry.handles.insert(id, handle);
+    }
+
+    let mut is_ready = true;
+    for (entity, bundle) in &query {
+        if let Some(handle) = asset_registry.handles.get(&bundle.0) {
+            if let Some(data) = assets.get(handle) {
+                registry.spawn(&mut commands.entity(entity), data.0.clone());
+
+                commands.entity(entity).remove::<ScriptBundle>();
+            } else {
+                is_ready = false;
+            }
         }
+    }
+
+    if is_ready && *state == ScriptState::Loading {
+        next_state.set(ScriptState::Ready);
+        asset_events.send(ScriptsReady);
     }
 }
 
@@ -227,7 +242,7 @@ where
     }
 }
 
-#[derive(Deserialize, Asset, TypePath)]
+#[derive(Clone, Deserialize, Asset, TypePath)]
 pub struct ComponentsData(pub HashMap<String, Value>);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, States)]

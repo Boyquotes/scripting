@@ -1,3 +1,4 @@
 {
+  "id": "sword",
   "damage": ["+", 2, ["@", "health"]]
 }

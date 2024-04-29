@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 use scripting::{
-    expr::ExprData, DynamicComponent, LoadScript, ScriptBundle, ScriptPlugin, ScriptsReady,
+    expr::ExprData, LoadScript, ScriptBundle, ScriptComponent, ScriptPlugin, ScriptsReady,
 };
 
 #[derive(Default, Component, Deref, DerefMut)]
 pub struct Health(f64);
 
-impl DynamicComponent for Health {
+impl ScriptComponent for Health {
     type Data = ExprData;
 }
 
 #[derive(Default, Component, Deref, DerefMut)]
 pub struct Damage(f64);
 
-impl DynamicComponent for Damage {
+impl ScriptComponent for Damage {
     type Data = ExprData;
 }
 
@@ -36,11 +36,7 @@ fn setup(mut asset_events: EventWriter<LoadScript>) {
 
 fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
     for _event in events.read() {
-        commands.spawn((
-            Health(10.),
-            Damage(1.),
-            ScriptBundle::new("sword.json"),
-        ));
+        commands.spawn((Health(10.), Damage(1.), ScriptBundle::new("sword")));
     }
 }
 
