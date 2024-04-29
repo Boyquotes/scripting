@@ -39,7 +39,7 @@ fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
         commands.spawn((
             Health(10.),
             Damage(1.),
-            ScriptBundle(String::from("sword.json")),
+            ScriptBundle::new("sword.json"),
         ));
     }
 }

@@ -144,6 +144,12 @@ impl Plugin for ScriptPlugin {
 #[derive(Component)]
 pub struct ScriptBundle(pub String);
 
+impl ScriptBundle {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
 #[derive(Default, Resource)]
 pub struct AssetRegistry {
     pub handles: HashMap<String, Handle<ComponentsData>>,
