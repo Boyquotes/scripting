@@ -14,11 +14,8 @@ pub use self::mul::{mul, MulFunction};
 mod query;
 pub use self::query::{query, QueryFunction};
 
-
 mod sub;
 pub use self::sub::{sub, SubFunction};
-
-
 
 pub trait FunctionBuilder: Send + Sync + 'static {
     type Function: Function;
