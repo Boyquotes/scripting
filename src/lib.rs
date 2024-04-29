@@ -48,6 +48,7 @@ pub struct Registry {
     spawn_fns: HashMap<String, SpawnFn>,
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
     deps: HashMap<String, Arc<dyn Dependency>>,
+    operations: HashMap<String, Arc<dyn Operation>>,
 }
 
 impl Registry {
@@ -108,3 +109,46 @@ impl LoadScript {
 
 #[derive(Event)]
 pub struct ScriptsReady;
+
+pub trait Operation: Send + Sync {
+    fn spawn(
+        &self,
+        registry: &Registry,
+        asset_server: &AssetServer,
+        entity_commands: &mut EntityCommands,
+        value: Value,
+    );
+}
+
+pub struct AddOperation;
+
+impl Operation for AddOperation {
+    fn spawn(
+        &self,
+        registry: &Registry,
+        asset_server: &AssetServer,
+        entity_commands: &mut EntityCommands,
+        value: Value,
+    ) {
+        let data: AddOperationData = serde_json::from_value(value).unwrap();
+        match data {
+            AddOperationData::Single(id) => {
+                let f = registry.spawn_fns.get(&id).unwrap();
+                f(Value::default(), registry, asset_server, entity_commands);
+            }
+            AddOperationData::Many(_) => todo!(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+pub enum AddOperationData {
+    Single(String),
+    Many(Vec<String>),
+}
+
+#[derive(Component)]
+pub struct EventMarker<T> {
+    pub _marker: PhantomData<T>,
+}
