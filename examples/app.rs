@@ -29,9 +29,9 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ScriptPlugin::default()
-                .with_derived::<Damage>("damage")
-                .with_derived::<Durability>("durability")
-                .with_derived::<MaxDurability>("max_durability"),
+                .with_component::<Damage>("damage")
+                .with_component::<Durability>("durability")
+                .with_component::<MaxDurability>("max_durability"),
         ))
         .add_systems(Startup, setup)
         .add_systems(Update, (spawn_sword, debug))

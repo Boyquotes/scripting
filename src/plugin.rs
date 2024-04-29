@@ -40,15 +40,7 @@ impl ScriptPlugin {
         }
     }
 
-    pub fn with_component<C: ScriptComponent>(mut self, id: impl Into<String>) -> Self {
-        let id = id.into();
-
-        self.registry.add_dependency::<C>(id);
-
-        self
-    }
-
-    pub fn with_derived<C: ScriptComponent + Default + DerefMut<Target = f64>>(
+    pub fn with_component<C: ScriptComponent + Default + DerefMut<Target = f64>>(
         mut self,
         id: impl Into<String>,
     ) -> Self {
