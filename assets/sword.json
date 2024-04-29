@@ -1,4 +1,9 @@
 {
-  "id": "sword",
-  "damage": ["-", 1, ["/", ["@", "durability"], ["@", "max_durability"]]]
+  "id": "sword_of_invincibility",
+  "durability": 0.1,
+  "max_durability": 1,
+  "damage": ["-", 1, ["/", ["@", "durability"], ["@", "max_durability"]]],
+  "on_equip": {
+    "add": "invincible"
+  }
 }

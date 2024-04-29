@@ -3,8 +3,8 @@ use crate::{
         function::{self, FunctionBuilder},
         StaticExpr,
     },
-    AssetRegistry, ComponentsData, Depends, LoadScript, Register, Registry, Scope, ScopeData,
-    ScriptBundle, ScriptComponent, ScriptState, ScriptsReady,
+    AddOperation, AssetRegistry, ComponentsData, Depends, EventMarker, LoadScript, Operation,
+    Register, Registry, Scope, ScopeData, ScriptBundle, ScriptComponent, ScriptState, ScriptsReady,
 };
 use bevy::{
     app::{Plugin, Update},
@@ -16,10 +16,13 @@ use bevy::{
         query::{Changed, With},
         schedule::{NextState, State},
         system::{Commands, Query, Res, ResMut},
+        world::Ref,
     },
     prelude::App,
+    utils::hashbrown::HashMap,
 };
 use bevy_common_assets::json::JsonAssetPlugin;
+use serde_json::Value;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -40,7 +43,22 @@ impl ScriptPlugin {
         }
     }
 
-    pub fn with_component<C: ScriptComponent + Default + DerefMut<Target = f64>>(
+    pub fn with_component<C: ScriptComponent>(mut self, id: impl Into<String>) -> Self {
+        let id = id.into();
+
+        self.registry.spawn_fns.insert(
+            id.clone(),
+            Arc::new(|value, registry, asset_server, entity_commands| {
+                let data: C::Data = serde_json::from_value(value).unwrap();
+                data.register::<C>(registry, asset_server, entity_commands);
+            }),
+        );
+        self.registry.add_dependency::<C>(id);
+
+        self
+    }
+
+    pub fn with_derived<C: ScriptComponent + Default + DerefMut<Target = f64>>(
         mut self,
         id: impl Into<String>,
     ) -> Self {
@@ -62,8 +80,45 @@ impl ScriptPlugin {
         self
     }
 
+    pub fn with_event<C: Component + Default>(mut self, id: impl Into<String>) -> Self {
+        let id = id.into();
+
+        self.registry.spawn_fns.insert(
+            id.clone(),
+            Arc::new(|value, registry, asset_server, entity_commands| {
+                let operations: HashMap<String, Value> = serde_json::from_value(value).unwrap();
+
+                for (id, operation_value) in operations {
+                    registry.operations.get(&id).unwrap().spawn(
+                        registry,
+                        asset_server,
+                        entity_commands,
+                        operation_value,
+                    );
+                }
+            }),
+        );
+
+        self.add_system_fns.push(Arc::new(|app: &mut App| {
+            app.add_systems(Update, run_events::<C>);
+        }));
+
+        self
+    }
+
     pub fn with_function(mut self, id: impl Into<String>, builder: impl FunctionBuilder) -> Self {
         self.registry.add_function(id, builder);
+        self
+    }
+
+    pub fn with_operation(
+        mut self,
+        id: impl Into<String>,
+        operation: impl Operation + 'static,
+    ) -> Self {
+        self.registry
+            .operations
+            .insert(id.into(), Arc::new(operation));
         self
     }
 }
@@ -75,6 +130,7 @@ impl Default for ScriptPlugin {
             .with_function("+", function::add())
             .with_function("-", function::sub())
             .with_function("/", function::div())
+            .with_operation("add", AddOperation)
     }
 }
 
@@ -192,4 +248,10 @@ where
     for (mut scope_data, value, dep) in &mut query {
         scope_data.set_dependency(&dep.id, **value);
     }
+}
+
+fn run_events<T>(_commands: Commands, _query: Query<(Entity, Ref<T>), With<EventMarker<T>>>)
+where
+    T: Component + Default,
+{
 }
