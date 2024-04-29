@@ -45,12 +45,18 @@ pub trait ScriptComponent: Component {
 }
 
 pub trait Register {
-    fn register<C: Component>(self, registry: &Registry, entity_commands: &mut EntityCommands);
+    fn register<C: Component>(
+        self,
+        registry: &Registry,
+        asset_server: &AssetServer,
+        entity_commands: &mut EntityCommands,
+    );
 }
 
 #[derive(Clone, Default, Resource)]
 pub struct Registry {
-    spawn_fns: HashMap<String, Arc<dyn Fn(Value, &Self, &mut EntityCommands) + Send + Sync>>,
+    spawn_fns:
+        HashMap<String, Arc<dyn Fn(Value, &Self, &AssetServer, &mut EntityCommands) + Send + Sync>>,
     fns: HashMap<String, Arc<dyn DynFunctionBuilder>>,
     deps: HashMap<String, Arc<dyn Dependency>>,
 }
@@ -64,9 +70,14 @@ impl Registry {
         self.deps.insert(id.into(), Arc::new(PhantomData::<C>));
     }
 
-    pub fn spawn(&self, entity_commands: &mut EntityCommands, values: HashMap<String, Value>) {
+    pub fn spawn(
+        &self,
+        asset_server: &AssetServer,
+        entity_commands: &mut EntityCommands,
+        values: HashMap<String, Value>,
+    ) {
         for (name, value) in values {
-            self.spawn_fns.get(&name).unwrap()(value, self, entity_commands)
+            self.spawn_fns.get(&name).unwrap()(value, self, asset_server, entity_commands)
         }
     }
 }
@@ -84,7 +95,22 @@ impl ScriptPlugin {
         }
     }
 
-    pub fn with_component<C: ScriptComponent + Default + DerefMut<Target = f64>>(
+    pub fn with_component<C: ScriptComponent>(mut self, id: impl Into<String>) -> Self {
+        let id = id.into();
+
+        self.registry.spawn_fns.insert(
+            id.clone(),
+            Arc::new(|value, registry, asset_server, entity_commands| {
+                let data: C::Data = serde_json::from_value(value).unwrap();
+                data.register::<C>(registry, asset_server, entity_commands);
+            }),
+        );
+        self.registry.add_dependency::<C>(id);
+
+        self
+    }
+
+    pub fn with_derived<C: ScriptComponent + Default + DerefMut<Target = f64>>(
         mut self,
         id: impl Into<String>,
     ) -> Self {
@@ -92,19 +118,15 @@ impl ScriptPlugin {
 
         self.registry.spawn_fns.insert(
             id.clone(),
-            Arc::new(|value, registry, entity_commands| {
+            Arc::new(|value, registry, asset_server, entity_commands| {
                 let data: C::Data = serde_json::from_value(value).unwrap();
-                data.register::<C>(registry, entity_commands);
+                data.register::<C>(registry, asset_server, entity_commands);
             }),
         );
         self.registry.add_dependency::<C>(id);
 
         self.add_system_fns.push(Arc::new(|app: &mut App| {
             app.add_systems(Update, (run_lazy::<C>, run_expr::<C>));
-        }));
-
-        self.add_system_fns.push(Arc::new(|app: &mut App| {
-            app.add_systems(Update, run_expr::<C>);
         }));
 
         self
@@ -175,6 +197,7 @@ fn load_assets(
 
 fn spawn_expr(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut asset_registry: ResMut<AssetRegistry>,
     mut assets: ResMut<Assets<ComponentsData>>,
     registry: Res<Registry>,
@@ -202,7 +225,7 @@ fn spawn_expr(
     for (entity, bundle) in &query {
         if let Some(handle) = asset_registry.handles.get(&bundle.0) {
             if let Some(data) = assets.get(handle) {
-                registry.spawn(&mut commands.entity(entity), data.0.clone());
+                registry.spawn(&asset_server, &mut commands.entity(entity), data.0.clone());
 
                 commands.entity(entity).remove::<ScriptBundle>();
             } else {

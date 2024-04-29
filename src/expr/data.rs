@@ -1,6 +1,10 @@
 use super::{Expr, StaticExpr};
 use crate::{Register, Registry, ScopeData};
-use bevy::{asset::Asset, prelude::Component, reflect::TypePath};
+use bevy::{
+    asset::{Asset, AssetServer},
+    prelude::Component,
+    reflect::TypePath,
+};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
@@ -39,6 +43,7 @@ impl Register for ExprData {
     fn register<C: Component>(
         self,
         registry: &Registry,
+        asset_server: &AssetServer,
         entity_commands: &mut bevy::ecs::system::EntityCommands,
     ) {
         self.build(registry).spawn::<C>(registry, entity_commands)
