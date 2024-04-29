@@ -45,3 +45,4 @@ fn debug(query: Query<&Damage, Changed<Damage>>) {
         dbg!(dmg.0);
     }
 }
+    

@@ -43,7 +43,7 @@ impl Register for ExprData {
     fn register<C: Component>(
         self,
         registry: &Registry,
-        asset_server: &AssetServer,
+        _asset_server: &AssetServer,
         entity_commands: &mut bevy::ecs::system::EntityCommands,
     ) {
         self.build(registry).spawn::<C>(registry, entity_commands)
