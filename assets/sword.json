@@ -1,6 +1,4 @@
 {
   "id": "sword",
-  "durability": 0.5,
-  "max_durability": 2,
   "damage": 1.5
 }

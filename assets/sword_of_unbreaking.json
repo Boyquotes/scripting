@@ -1,4 +1,4 @@
 {
-  "id": "sword_of_invincibility",
+  "id": "sword_of_unbreaking",
   "damage": ["-", 1, ["/", ["@", "durability"], ["@", "max_durability"]]]
 }

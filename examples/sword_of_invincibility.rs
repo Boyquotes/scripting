@@ -1,29 +1,8 @@
 use bevy::prelude::*;
 use scripting::{
-    expr::ExprData, LoadScript, Register, ScriptBundle, ScriptComponent, ScriptPlugin, ScriptsReady,
+    LoadScript, Register, ScriptBundle, ScriptComponent, ScriptPlugin, ScriptsReady,
 };
 use serde::Deserialize;
-
-#[derive(Default, Component, Deref, DerefMut)]
-pub struct Durability(f64);
-
-impl ScriptComponent for Durability {
-    type Data = ExprData;
-}
-
-#[derive(Default, Component, Deref, DerefMut)]
-pub struct MaxDurability(f64);
-
-impl ScriptComponent for MaxDurability {
-    type Data = ExprData;
-}
-
-#[derive(Default, Component, Deref, DerefMut)]
-pub struct Damage(f64);
-
-impl ScriptComponent for Damage {
-    type Data = ExprData;
-}
 
 #[derive(Default, Component)]
 struct Invincible;
@@ -54,32 +33,24 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ScriptPlugin::default()
-                .with_derived::<Damage>("damage")
-                .with_derived::<Durability>("durability")
-                .with_derived::<MaxDurability>("max_durability")
                 .with_component::<Invincible>("invincible")
                 .with_event::<OnEquip>("on_equip"),
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (spawn_sword, debug, debug_invincible))
+        .add_systems(Update, (spawn_sword,debug_invincible))
         .run();
 }
 
 fn setup(mut asset_events: EventWriter<LoadScript>) {
-    asset_events.send(LoadScript::new("sword.json"));
+    asset_events.send(LoadScript::new("sword_of_invincibility.json"));
 }
 
 fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
     for _event in events.read() {
-        commands.spawn((Durability(0.1), MaxDurability(1.), OnEquip, ScriptBundle::new("sword_of_invincibility")));
+        commands.spawn((OnEquip, ScriptBundle::new("sword_of_invincibility")));
     }
 }
 
-fn debug(query: Query<&Damage, Changed<Damage>>) {
-    for dmg in &query {
-        dbg!(dmg.0);
-    }
-}
 
 fn debug_invincible(query: Query<Ref<Invincible>, Changed<Invincible>>) {
     for e in &query {

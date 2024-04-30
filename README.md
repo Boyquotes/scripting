@@ -13,7 +13,7 @@ Experimental scripting engine for [Bevy](https://github.com/bevyengine/bevy)
 ```
 
 # Introduction
-Components are defined as JSON maps and can be deserialized into ECS components with [Serde](https://serde.rs/);
+Components are defined as JSON maps and can be deserialized into ECS components with [Serde](https://serde.rs/).
 
 ```json
 {
@@ -30,7 +30,7 @@ Expressions are reactive and use a LISP-like syntax.
 
 ```json
 {
-  "id": "sword_of_invincibility",
+  "id": "sword_of_the_undying",
   "damage": ["-", 1, ["/", ["@", "durability"], ["@", "max_durability"]]]
 }
 ```
