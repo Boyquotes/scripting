@@ -1,5 +1,7 @@
 Experimental scripting engine for [Bevy](https://github.com/bevyengine/bevy)
 
+[Examples](https://github.com/matthunz/scripting/tree/main/examples)
+
 ```json
 {
   "id": "sword_of_invincibility",
@@ -25,7 +27,7 @@ Components are defined as JSON maps and can be deserialized into ECS components 
 ```
 
 Expressions are reactive and use a LISP-like syntax.
- * Functions are written with `["{NAME}", "{ARG 1}", "{ARG 2}", ...]
+ * Functions are written with `["{NAME}", "{ARG 1}", "{ARG 2}", ...]`
  * Queries are performed with the function `@`
 
 ```json
