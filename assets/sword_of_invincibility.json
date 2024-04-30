@@ -1,0 +1,7 @@
+{
+  "id": "sword_of_invincibility",
+  "damage": ["-", 1, ["/", ["@", "durability"], ["@", "max_durability"]]],
+  "on_equip": {
+    "add": "invincible"
+  }
+}

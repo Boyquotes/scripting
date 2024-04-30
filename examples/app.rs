@@ -71,7 +71,7 @@ fn setup(mut asset_events: EventWriter<LoadScript>) {
 
 fn spawn_sword(mut commands: Commands, mut events: EventReader<ScriptsReady>) {
     for _event in events.read() {
-        commands.spawn((OnEquip, ScriptBundle::new("sword_of_invincibility")));
+        commands.spawn((Durability(0.1), MaxDurability(1.), OnEquip, ScriptBundle::new("sword_of_invincibility")));
     }
 }
 
